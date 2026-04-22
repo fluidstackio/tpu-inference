@@ -14,6 +14,9 @@ if TYPE_CHECKING:
     TPU_MULTIHOST_BACKEND: str = ""
     PREFILL_SLICES: str = ""
     DECODE_SLICES: str = ""
+    TPU_OFFLOAD_ENABLED: bool = False
+    TPU_OFFLOAD_NUM_CPU_CHUNKS: int = 1024
+    TPU_OFFLOAD_CHUNK_SIZE: int = 256
     SKIP_JAX_PRECOMPILE: bool = False
     VLLM_XLA_CHECK_RECOMPILATION: bool = False
     MODEL_IMPL_TYPE: str = "auto"
@@ -120,6 +123,16 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # Slice configuration for disaggregated decode workers
     "DECODE_SLICES":
     lambda: os.getenv("DECODE_SLICES", ""),
+    # ---- KV cache offload PoC (MVP, DRAM-only) ----
+    # Master switch for the PoC offload connector. Default off.
+    "TPU_OFFLOAD_ENABLED":
+    env_bool("TPU_OFFLOAD_ENABLED", default=False),
+    # DRAM store capacity (in KV chunks).
+    "TPU_OFFLOAD_NUM_CPU_CHUNKS":
+    lambda: int(os.getenv("TPU_OFFLOAD_NUM_CPU_CHUNKS", "1024")),
+    # Token chunk size for prefix hashing.
+    "TPU_OFFLOAD_CHUNK_SIZE":
+    lambda: int(os.getenv("TPU_OFFLOAD_CHUNK_SIZE", "256")),
     # Skip JAX precompilation step during initialization
     "SKIP_JAX_PRECOMPILE":
     env_bool("SKIP_JAX_PRECOMPILE", default=False),
