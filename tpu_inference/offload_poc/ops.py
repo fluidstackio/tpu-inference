@@ -144,6 +144,9 @@ def update_kv_caches(
     layer_slices_tuple = jnp.unstack(concatenated_blocks, axis=1)
     layer_slices_list = list(layer_slices_tuple)
 
+    # multi_layer_copy cherry-picked from PR #2026 does not take mesh /
+    # sharding spec kwargs; those were added in a later revision. The
+    # function derives sharding from the input arrays themselves.
     output = kv_transfer.multi_layer_copy(
         src_array=layer_slices_list,
         dest_array=kv_caches,
@@ -151,10 +154,6 @@ def update_kv_caches(
         dest_offsets=dest_offsets,
         chunk_sizes=chunk_sizes,
         num_chunks=num_chunks,
-        mesh=mesh,
-        src_sharding_spec=src_sharding_spec,
-        dest_sharding_spec=dest_sharding_spec,
-        replicated_sharding_spec=replicated_sharding_spec,
     )
     return output
 
