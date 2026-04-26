@@ -17,6 +17,9 @@ if TYPE_CHECKING:
     TPU_OFFLOAD_ENABLED: bool = False
     TPU_OFFLOAD_NUM_CPU_CHUNKS: int = 1024
     TPU_OFFLOAD_CHUNK_SIZE: int = 256
+    TPU_OFFLOAD_MIN_CHUNKS_TO_SAVE: int = 1
+    TPU_OFFLOAD_MAX_CHUNKS_PER_REQ: int = 64
+    TPU_OFFLOAD_SKIP_ALREADY_CACHED: bool = True
     SKIP_JAX_PRECOMPILE: bool = False
     VLLM_XLA_CHECK_RECOMPILATION: bool = False
     MODEL_IMPL_TYPE: str = "auto"
@@ -133,6 +136,15 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # Token chunk size for prefix hashing.
     "TPU_OFFLOAD_CHUNK_SIZE":
     lambda: int(os.getenv("TPU_OFFLOAD_CHUNK_SIZE", "256")),
+    # Offload policy: skip save if request has fewer full chunks than this.
+    "TPU_OFFLOAD_MIN_CHUNKS_TO_SAVE":
+    lambda: int(os.getenv("TPU_OFFLOAD_MIN_CHUNKS_TO_SAVE", "1")),
+    # Offload policy: cap chunks saved per request.
+    "TPU_OFFLOAD_MAX_CHUNKS_PER_REQ":
+    lambda: int(os.getenv("TPU_OFFLOAD_MAX_CHUNKS_PER_REQ", "64")),
+    # Offload policy: skip chunks already in the DRAM store.
+    "TPU_OFFLOAD_SKIP_ALREADY_CACHED":
+    env_bool("TPU_OFFLOAD_SKIP_ALREADY_CACHED", default=True),
     # Skip JAX precompilation step during initialization
     "SKIP_JAX_PRECOMPILE":
     env_bool("SKIP_JAX_PRECOMPILE", default=False),
