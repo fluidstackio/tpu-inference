@@ -32,6 +32,10 @@ from __future__ import annotations
 from collections import OrderedDict
 from typing import Any
 
+from tpu_inference.logger import init_logger
+
+logger = init_logger(__name__)
+
 
 class PoCCPUStore:
     """LRU-evicting map with probe/release reference counting.
@@ -77,7 +81,14 @@ class PoCCPUStore:
         """
         payload = self._data.get(key)
         if payload is None:
+            logger.info(
+                "[offload_poc] cpu_store MISS key=%s store_size=%d",
+                str(key)[:16], len(self._data))
             return None
+        logger.info(
+            "[offload_poc] cpu_store HIT  key=%s store_size=%d refs=%d",
+            str(key)[:16], len(self._data),
+            self._refs.get(key, 0) + 1)
         # Touch LRU order on hit so frequently-used chunks stay warm.
         self._data.move_to_end(key)
         self._refs[key] = self._refs.get(key, 0) + 1
@@ -95,10 +106,19 @@ class PoCCPUStore:
         """
         n = self._refs.get(key)
         if n is None:
+            logger.info(
+                "[offload_poc] cpu_store RELEASE (noop) key=%s",
+                str(key)[:16])
             return
         if n <= 1:
+            logger.info(
+                "[offload_poc] cpu_store RELEASE (unpin) key=%s",
+                str(key)[:16])
             self._refs.pop(key, None)
         else:
+            logger.info(
+                "[offload_poc] cpu_store RELEASE key=%s refs=%d",
+                str(key)[:16], n - 1)
             self._refs[key] = n - 1
 
     # ---- insertion with LRU eviction ---------------------------------------
@@ -115,12 +135,18 @@ class PoCCPUStore:
         the caller from silently losing data.
         """
         if key in self._data:
+            logger.info(
+                "[offload_poc] cpu_store PUT (replace) key=%s store_size=%d",
+                str(key)[:16], len(self._data))
             self._data[key] = payload
             self._data.move_to_end(key)
             return False
 
         if len(self._data) >= self._max:
             self._evict_one_lru_unpinned()
+        logger.info(
+            "[offload_poc] cpu_store PUT (new)     key=%s store_size=%d",
+            str(key)[:16], len(self._data) + 1)
 
         self._data[key] = payload
         return True
@@ -135,6 +161,9 @@ class PoCCPUStore:
         """
         for key in self._data:
             if self._refs.get(key, 0) == 0:
+                logger.info(
+                    "[offload_poc] cpu_store EVICT key=%s",
+                    str(key)[:16])
                 self._data.pop(key)
                 return
         raise RuntimeError(
